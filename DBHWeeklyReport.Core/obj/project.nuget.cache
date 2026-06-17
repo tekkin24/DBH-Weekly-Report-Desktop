@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "HMbv0pAx6UI=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\DBS029\\Documents\\DBH Weekly Report Desktop\\DBHWeeklyReport.Core\\DBHWeeklyReport.Core.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\DBS029\\.nuget\\packages\\microsoft.netcore.app.ref\\8.0.27\\microsoft.netcore.app.ref.8.0.27.nupkg.sha512",
+    "C:\\Users\\DBS029\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\8.0.27\\microsoft.windowsdesktop.app.ref.8.0.27.nupkg.sha512",
+    "C:\\Users\\DBS029\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\8.0.27\\microsoft.aspnetcore.app.ref.8.0.27.nupkg.sha512"
+  ],
+  "logs": []
+}
