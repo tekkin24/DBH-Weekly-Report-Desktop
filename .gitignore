@@ -1,0 +1,6 @@
+bin/
+obj/
+publish/
+.codex-runtime/
+__pycache__/
+*.pyc
