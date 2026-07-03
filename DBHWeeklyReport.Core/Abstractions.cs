@@ -61,6 +61,13 @@ public interface IAutoStartRegistrar
     void SetEnabled(string executablePath, bool enabled);
 }
 
+public interface IScheduledTaskRegistrar
+{
+    bool IsEnabled(string executablePath, AppSettings settings);
+
+    void SetEnabled(string executablePath, AppSettings settings, bool enabled);
+}
+
 public interface ILogService
 {
     string LogDirectory { get; }

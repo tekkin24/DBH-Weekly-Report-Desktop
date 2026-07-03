@@ -1,7 +1,7 @@
 <Window x:Class="DBHWeeklyReport.App.PreviewWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Weekly Report Preview"
+        Title="Xem trước báo cáo tuần"
         Width="1200"
         Height="720"
         WindowStartupLocation="CenterScreen">
@@ -15,8 +15,8 @@
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Margin="0,12,0,0">
-            <Button Width="110" Margin="0,0,8,0" Click="OnWriteClick">Write to Excel</Button>
-            <Button Width="110" Click="OnCancelClick">Cancel</Button>
+            <Button Width="110" Margin="0,0,8,0" Click="OnWriteClick">Ghi vào Excel</Button>
+            <Button Width="110" Click="OnCancelClick">Hủy</Button>
         </StackPanel>
 
         <DataGrid ItemsSource="{Binding Items}"
@@ -28,12 +28,12 @@
                   CanUserDeleteRows="False"
                   GridLinesVisibility="Horizontal">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Date" Binding="{Binding ReportDate}" Width="100" />
-                <DataGridTextColumn Header="状態" Binding="{Binding Status}" Width="90" />
-                <DataGridTextColumn Header="タスク" Binding="{Binding Task}" Width="220" />
-                <DataGridTextColumn Header="作業詳細" Binding="{Binding Detail}" Width="270" />
-                <DataGridTextColumn Header="メモ" Binding="{Binding Memo}" Width="*" />
-                <DataGridTextColumn Header="Commits" Binding="{Binding CommitCount}" Width="80" />
+                <DataGridTextColumn Header="Ngày" Binding="{Binding ReportDate}" Width="100" />
+                <DataGridTextColumn Header="Trạng thái" Binding="{Binding Status}" Width="90" />
+                <DataGridTextColumn Header="Công việc" Binding="{Binding Task}" Width="220" />
+                <DataGridTextColumn Header="Chi tiết" Binding="{Binding Detail}" Width="270" />
+                <DataGridTextColumn Header="Ghi chú" Binding="{Binding Memo}" Width="*" />
+                <DataGridTextColumn Header="Commit" Binding="{Binding CommitCount}" Width="80" />
             </DataGrid.Columns>
         </DataGrid>
     </DockPanel>

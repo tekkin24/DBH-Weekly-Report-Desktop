@@ -42,6 +42,7 @@ public sealed class JsonSettingsStore : ISettingsStore
         RunDay = DayOfWeek.Friday,
         RunTime = new TimeSpan(16, 0, 0),
         AutoStartWithWindows = true,
+        UseWindowsTaskScheduler = true,
         LogDirectory = AppPaths.DefaultLogDirectory,
     };
 }

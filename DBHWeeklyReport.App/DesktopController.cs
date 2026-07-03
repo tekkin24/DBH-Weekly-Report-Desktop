@@ -10,6 +10,7 @@ public sealed class DesktopController(
     IWeeklyReportService weeklyReportService,
     IExcelReportWriter excelReportWriter,
     IAutoStartRegistrar autoStartRegistrar,
+    IScheduledTaskRegistrar scheduledTaskRegistrar,
     ILogService logService)
 {
     public AppSettings Settings { get; private set; } = new();
@@ -59,6 +60,14 @@ public sealed class DesktopController(
         if (!string.IsNullOrWhiteSpace(ExecutablePath))
         {
             autoStartRegistrar.SetEnabled(ExecutablePath, Settings.AutoStartWithWindows);
+        }
+    }
+
+    public void ApplyScheduledTask()
+    {
+        if (!string.IsNullOrWhiteSpace(ExecutablePath))
+        {
+            scheduledTaskRegistrar.SetEnabled(ExecutablePath, Settings, Settings.UseWindowsTaskScheduler);
         }
     }
 

@@ -9,7 +9,7 @@ public sealed class PreviewWindowViewModel
     {
         Preview = preview;
         Items = new ObservableCollection<DailyReportEntry>(preview.Reports);
-        Summary = $"{preview.WeekStart:yyyy-MM-dd} - {preview.WeekEnd:yyyy-MM-dd} | Commits: {preview.CommitCount} | Days: {preview.Reports.Count}";
+        Summary = $"{preview.WeekStart:yyyy-MM-dd} - {preview.WeekEnd:yyyy-MM-dd} | Số commit: {preview.CommitCount} | Số ngày có dữ liệu: {preview.Reports.Count}";
     }
 
     public WeeklyReportPreview Preview { get; }

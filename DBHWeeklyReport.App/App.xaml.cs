@@ -27,6 +27,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<IWeeklyReportService, WeeklyReportService>();
         services.AddSingleton<IExcelReportWriter, PythonExcelReportWriter>();
         services.AddSingleton<IAutoStartRegistrar, RegistryAutoStartRegistrar>();
+        services.AddSingleton<IScheduledTaskRegistrar, WindowsScheduledTaskRegistrar>();
         services.AddSingleton<ILogService>(_ => new FileLogService(() =>
             string.IsNullOrWhiteSpace(controllerRef?.Settings.LogDirectory)
                 ? AppPaths.DefaultLogDirectory
@@ -38,6 +39,7 @@ public partial class App : System.Windows.Application
                 provider.GetRequiredService<IWeeklyReportService>(),
                 provider.GetRequiredService<IExcelReportWriter>(),
                 provider.GetRequiredService<IAutoStartRegistrar>(),
+                provider.GetRequiredService<IScheduledTaskRegistrar>(),
                 provider.GetRequiredService<ILogService>());
             return controllerRef;
         });
@@ -82,14 +84,14 @@ public partial class App : System.Windows.Application
     {
         _notifyIcon = new WF.NotifyIcon
         {
-            Text = "DBH Weekly Report Desktop",
+            Text = "Báo cáo tuần DBH",
             Visible = true,
             Icon = System.Drawing.SystemIcons.Application,
         };
 
         var menu = new WF.ContextMenuStrip();
-        menu.Items.Add("Open", null, (_, _) => ShowMainWindow());
-        menu.Items.Add("Run now", null, async (_, _) =>
+        menu.Items.Add("Mở", null, (_, _) => ShowMainWindow());
+        menu.Items.Add("Chạy ngay", null, async (_, _) =>
         {
             ShowMainWindow();
             if (_mainWindow is not null)
@@ -97,7 +99,7 @@ public partial class App : System.Windows.Application
                 await _mainWindow.ShowPreviewAsync(DateOnly.FromDateTime(DateTime.Today));
             }
         });
-        menu.Items.Add("Exit", null, (_, _) =>
+        menu.Items.Add("Thoát", null, (_, _) =>
         {
             _notifyIcon!.Visible = false;
             if (_mainWindow is not null)

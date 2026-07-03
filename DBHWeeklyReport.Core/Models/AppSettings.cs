@@ -16,6 +16,8 @@ public sealed class AppSettings
 
     public bool AutoStartWithWindows { get; set; } = true;
 
+    public bool UseWindowsTaskScheduler { get; set; }
+
     public string LogDirectory { get; set; } = string.Empty;
 
     public string LastTriggeredWeekKey { get; set; } = string.Empty;

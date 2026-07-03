@@ -45,26 +45,26 @@ public partial class MainWindow : Window
     {
         try
         {
-            _viewModel.StatusText = "Generating preview...";
+            _viewModel.StatusText = "Đang tạo bản xem trước...";
             var preview = await _controller.GeneratePreviewAsync(referenceDate);
             var dialog = new PreviewWindow(new PreviewWindowViewModel(preview));
             var result = dialog.ShowDialog();
             if (result == true && dialog.Confirmed)
             {
-                _viewModel.StatusText = "Writing Excel...";
+                _viewModel.StatusText = "Đang ghi vào Excel...";
                 var path = await _controller.WritePreviewAsync(preview);
-                _viewModel.StatusText = $"Written to Excel: {path}";
+                _viewModel.StatusText = $"Đã ghi vào Excel: {path}";
                 RefreshSchedule();
                 return true;
             }
 
-            _viewModel.StatusText = "Preview cancelled.";
+            _viewModel.StatusText = "Đã hủy xem trước.";
             return false;
         }
         catch (Exception ex)
         {
             _viewModel.StatusText = ex.Message;
-            System.Windows.MessageBox.Show(this, ex.ToString(), "Weekly Report Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            System.Windows.MessageBox.Show(this, ex.ToString(), "Lỗi báo cáo tuần", MessageBoxButton.OK, MessageBoxImage.Error);
             return false;
         }
     }
@@ -77,18 +77,19 @@ public partial class MainWindow : Window
             var validation = _controller.Validate();
             if (!validation.IsValid)
             {
-                System.Windows.MessageBox.Show(this, string.Join(Environment.NewLine, validation.Errors), "Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
+                System.Windows.MessageBox.Show(this, string.Join(Environment.NewLine, validation.Errors), "Kiểm tra dữ liệu", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             await _controller.SaveAsync();
             _controller.ApplyAutoStart();
-            _viewModel.StatusText = "Settings saved.";
+            _controller.ApplyScheduledTask();
+            _viewModel.StatusText = "Đã lưu cài đặt.";
             RefreshSchedule();
         }
         catch (Exception ex)
         {
-            System.Windows.MessageBox.Show(this, ex.ToString(), "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            System.Windows.MessageBox.Show(this, ex.ToString(), "Lỗi lưu cài đặt", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -126,7 +127,7 @@ public partial class MainWindow : Window
     {
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
-            Filter = "Excel Workbook (*.xlsx)|*.xlsx",
+            Filter = "Tệp Excel (*.xlsx)|*.xlsx",
             CheckFileExists = true,
         };
 
@@ -154,6 +155,20 @@ public partial class MainWindow : Window
 
     private void RefreshSchedule()
     {
-        _viewModel.NextRunText = _controller.GetNextRun(DateTimeOffset.Now).ToString("yyyy-MM-dd HH:mm");
+        var nextRun = _controller.GetNextRun(DateTimeOffset.Now);
+        _viewModel.NextRunText = $"{GetVietnameseDayName(nextRun.DayOfWeek)}, {nextRun:dd/MM/yyyy HH:mm}";
+        _viewModel.ScheduleText = $"Mỗi {GetVietnameseDayName(_controller.Settings.RunDay)} lúc {_controller.Settings.RunTime:hh\\:mm}";
     }
+
+    private static string GetVietnameseDayName(DayOfWeek dayOfWeek) => dayOfWeek switch
+    {
+        DayOfWeek.Monday => "Thứ Hai",
+        DayOfWeek.Tuesday => "Thứ Ba",
+        DayOfWeek.Wednesday => "Thứ Tư",
+        DayOfWeek.Thursday => "Thứ Năm",
+        DayOfWeek.Friday => "Thứ Sáu",
+        DayOfWeek.Saturday => "Thứ Bảy",
+        DayOfWeek.Sunday => "Chủ Nhật",
+        _ => dayOfWeek.ToString(),
+    };
 }
