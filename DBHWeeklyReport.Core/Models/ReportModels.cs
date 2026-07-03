@@ -1,6 +1,10 @@
 namespace DBHWeeklyReport.Core.Models;
 
-public sealed record CommitInfo(DateOnly CommitDate, string Subject, IReadOnlyList<string> Files);
+public sealed record CommitInfo(
+    DateOnly CommitDate,
+    string Subject,
+    IReadOnlyList<string> BodyLines,
+    IReadOnlyList<string> Files);
 
 public sealed class DailyReportEntry
 {

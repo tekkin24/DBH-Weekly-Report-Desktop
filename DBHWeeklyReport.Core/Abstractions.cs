@@ -32,6 +32,13 @@ public interface IWeeklyReportService
         CancellationToken cancellationToken = default);
 }
 
+public interface ICommitBodyTranslationService
+{
+    Task<IReadOnlyList<CommitInfo>> TranslateAsync(
+        IReadOnlyList<CommitInfo> commits,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IExcelReportWriter
 {
     Task<string> WriteAsync(

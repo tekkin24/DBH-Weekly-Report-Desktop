@@ -22,6 +22,7 @@ public partial class App : System.Windows.Application
         var services = new ServiceCollection();
         services.AddSingleton<ISettingsStore, JsonSettingsStore>();
         services.AddSingleton<ICommitCollector, GitCommitCollector>();
+        services.AddSingleton<ICommitBodyTranslationService, OnlineCommitBodyTranslationService>();
         services.AddSingleton<IWeeklyReportComposer, WeeklyReportComposer>();
         services.AddSingleton<IWeeklyReportService, WeeklyReportService>();
         services.AddSingleton<IExcelReportWriter, PythonExcelReportWriter>();

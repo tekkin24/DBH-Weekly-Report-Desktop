@@ -8,6 +8,10 @@ namespace DBHWeeklyReport.Infrastructure;
 
 public sealed class GitCommitCollector : ICommitCollector
 {
+    private const string CommitMarker = "__COMMIT__";
+    private const string BodyMarker = "__BODY__";
+    private const string FilesMarker = "__FILES__";
+
     public async Task<(string? AuthorName, string? AuthorEmail, IReadOnlyList<CommitInfo> Commits)> CollectAsync(
         string repositoryPath,
         DateOnly startDate,
@@ -26,7 +30,7 @@ public sealed class GitCommitCollector : ICommitCollector
             $"--until={endDate:yyyy-MM-dd} 23:59:59",
             "--date=short",
             "--name-only",
-            "--pretty=format:__COMMIT__%n%ad%x1f%an%x1f%ae%x1f%s",
+            $"--pretty=format:{CommitMarker}%n%ad%x1f%an%x1f%ae%x1f%s%n{BodyMarker}%n%b%n{FilesMarker}",
         };
 
         if (!string.IsNullOrWhiteSpace(authorName))
@@ -42,15 +46,21 @@ public sealed class GitCommitCollector : ICommitCollector
     {
         var commits = new List<CommitInfo>();
         string[]? header = null;
+        var currentBodyLines = new List<string>();
         var currentFiles = new List<string>();
+        var inBody = false;
+        var inFiles = false;
 
         foreach (var line in output.Split(['\r', '\n'], StringSplitOptions.None))
         {
-            if (line == "__COMMIT__")
+            if (line == CommitMarker)
             {
-                TryAddCommit(commits, header, currentFiles, authorEmail);
+                TryAddCommit(commits, header, currentBodyLines, currentFiles, authorEmail);
                 header = null;
+                currentBodyLines = [];
                 currentFiles = [];
+                inBody = false;
+                inFiles = false;
                 continue;
             }
 
@@ -65,17 +75,42 @@ public sealed class GitCommitCollector : ICommitCollector
                 continue;
             }
 
-            if (!string.IsNullOrWhiteSpace(line))
+            if (line == BodyMarker)
+            {
+                inBody = true;
+                inFiles = false;
+                continue;
+            }
+
+            if (line == FilesMarker)
+            {
+                inBody = false;
+                inFiles = true;
+                continue;
+            }
+
+            if (inBody)
+            {
+                currentBodyLines.Add(line.TrimEnd());
+                continue;
+            }
+
+            if (inFiles && !string.IsNullOrWhiteSpace(line))
             {
                 currentFiles.Add(line.Trim());
             }
         }
 
-        TryAddCommit(commits, header, currentFiles, authorEmail);
+        TryAddCommit(commits, header, currentBodyLines, currentFiles, authorEmail);
         return commits;
     }
 
-    private static void TryAddCommit(List<CommitInfo> commits, string[]? header, List<string> files, string? authorEmail)
+    private static void TryAddCommit(
+        List<CommitInfo> commits,
+        string[]? header,
+        List<string> bodyLines,
+        List<string> files,
+        string? authorEmail)
     {
         if (header is null || header.Length < 4)
         {
@@ -97,7 +132,7 @@ public sealed class GitCommitCollector : ICommitCollector
             return;
         }
 
-        commits.Add(new CommitInfo(DateOnly.Parse(rawDate), subject, files.ToArray()));
+        commits.Add(new CommitInfo(DateOnly.Parse(rawDate), subject, bodyLines.ToArray(), files.ToArray()));
     }
 
     private static async Task<string> RunGitAsync(string repositoryPath, params string[] arguments)

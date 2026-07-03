@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import json
 import os
 import re
 import shutil
@@ -23,6 +24,8 @@ SHEET_DATE_CELL = "B5"
 DATA_START_ROW = 8
 SEPARATOR = "、"
 COMMIT_MARKER = "__COMMIT__"
+BODY_MARKER = "__BODY__"
+FILES_MARKER = "__FILES__"
 HEADER_SEPARATOR = "\x1f"
 
 SKIP_SUBJECTS = (
@@ -98,11 +101,42 @@ SUBJECT_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"enhance product inspection features with dbringshipmentbox integration", re.IGNORECASE), "ProductInspectionにDbRingShipmentBox連携を追加"),
 )
 
+BODY_LINE_PATTERNS = (
+    (re.compile(r"^(add|create)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を追加する"),
+    (re.compile(r"^(update)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を更新する"),
+    (re.compile(r"^(fix)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を修正する"),
+    (re.compile(r"^(remove|delete)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を削除する"),
+    (re.compile(r"^(rename)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}の名前を変更する"),
+    (re.compile(r"^(move)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を移動する"),
+    (re.compile(r"^(refactor)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}をリファクタリングする"),
+    (re.compile(r"^(improve|enhance)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を改善する"),
+    (re.compile(r"^(adjust|tune)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を調整する"),
+    (re.compile(r"^(simplify)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を簡単にする"),
+    (re.compile(r"^(normalize|standardize|unify)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を統一する"),
+    (re.compile(r"^(implement)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を実装する"),
+    (re.compile(r"^(prevent|avoid)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を防ぐ"),
+    (re.compile(r"^(allow|support)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}に対応する"),
+    (re.compile(r"^(use)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を使う"),
+    (re.compile(r"^(keep)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を維持する"),
+    (re.compile(r"^(show)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を表示する"),
+    (re.compile(r"^(hide)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を非表示にする"),
+    (re.compile(r"^(load)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を読み込む"),
+    (re.compile(r"^(save)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を保存する"),
+    (re.compile(r"^(open)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を開く"),
+    (re.compile(r"^(close)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を閉じる"),
+    (re.compile(r"^(render)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を表示する"),
+    (re.compile(r"^(return)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を返す"),
+    (re.compile(r"^(replace)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}を置き換える"),
+    (re.compile(r"^(convert)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}に変換する"),
+    (re.compile(r"^(skip)\s+(.+)$", re.IGNORECASE), lambda m: f"{translate_body_remainder(m.group(2))}をスキップする"),
+)
+
 
 @dataclass(frozen=True)
 class CommitInfo:
     commit_date: date
     subject: str
+    body_lines: tuple[str, ...]
     files: tuple[str, ...]
 
 
@@ -123,6 +157,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--reference-date", required=True, help="YYYY-MM-DD")
     parser.add_argument("--author")
     parser.add_argument("--author-email")
+    parser.add_argument("--preview-json")
     return parser.parse_args()
 
 
@@ -176,7 +211,7 @@ def collect_commits(
         f"--until={end_date:%Y-%m-%d} 23:59:59",
         "--date=short",
         "--name-only",
-        "--pretty=format:__COMMIT__%n%ad%x1f%an%x1f%ae%x1f%s",
+        f"--pretty=format:{COMMIT_MARKER}%n%ad%x1f%an%x1f%ae%x1f%s%n{BODY_MARKER}%n%b%n{FILES_MARKER}",
     ]
     if resolved_author_name:
         args.append(f"--author={resolved_author_name}")
@@ -189,14 +224,20 @@ def collect_commits(
 def parse_commits(output: str, author_email: str | None) -> list[CommitInfo]:
     commits: list[CommitInfo] = []
     header: list[str] | None = None
+    current_body_lines: list[str] = []
     current_files: list[str] = []
+    in_body = False
+    in_files = False
 
     for raw_line in output.splitlines():
         line = raw_line.rstrip("\n")
         if line == COMMIT_MARKER:
-            try_add_commit(commits, header, current_files, author_email)
+            try_add_commit(commits, header, current_body_lines, current_files, author_email)
             header = None
+            current_body_lines = []
             current_files = []
+            in_body = False
+            in_files = False
             continue
 
         if header is None:
@@ -205,16 +246,31 @@ def parse_commits(output: str, author_email: str | None) -> list[CommitInfo]:
             header = line.split(HEADER_SEPARATOR, 3)
             continue
 
-        if line.strip():
+        if line == BODY_MARKER:
+            in_body = True
+            in_files = False
+            continue
+
+        if line == FILES_MARKER:
+            in_body = False
+            in_files = True
+            continue
+
+        if in_body:
+            current_body_lines.append(line.rstrip())
+            continue
+
+        if in_files and line.strip():
             current_files.append(line.strip())
 
-    try_add_commit(commits, header, current_files, author_email)
+    try_add_commit(commits, header, current_body_lines, current_files, author_email)
     return commits
 
 
 def try_add_commit(
     commits: list[CommitInfo],
     header: list[str] | None,
+    body_lines: list[str],
     files: list[str],
     author_email: str | None,
 ) -> None:
@@ -233,6 +289,7 @@ def try_add_commit(
         CommitInfo(
             commit_date=datetime.strptime(raw_date, "%Y-%m-%d").date(),
             subject=subject,
+            body_lines=tuple(body_lines),
             files=tuple(files),
         )
     )
@@ -240,6 +297,23 @@ def try_add_commit(
 
 def resolve_sheet_title(target_date: date) -> str:
     return target_date.replace(day=1).strftime("%d-%m-%Y")
+
+
+def load_preview_reports(preview_json_path: Path) -> list[DailyReportEntry]:
+    payload = json.loads(preview_json_path.read_text(encoding="utf-8-sig"))
+    reports: list[DailyReportEntry] = []
+    for item in payload:
+        reports.append(
+            DailyReportEntry(
+                report_date=datetime.strptime(item["ReportDate"], "%Y-%m-%d").date(),
+                status=item["Status"],
+                task=item["Task"],
+                detail=item["Detail"],
+                memo=item["Memo"],
+                commit_count=int(item["CommitCount"]),
+            )
+        )
+    return reports
 
 
 def compose_daily_reports(start_date: date, end_date: date, commits: Sequence[CommitInfo]) -> list[DailyReportEntry]:
@@ -266,7 +340,7 @@ def build_daily_report(report_date: date, commits: Sequence[CommitInfo]) -> Dail
 
     translated: list[str] = []
     for commit in commits:
-        text = translate_subject(commit.subject, commit.files)
+        text = build_memo_text(commit)
         if text not in translated:
             translated.append(text)
         if len(translated) == 6:
@@ -357,6 +431,69 @@ def translate_subject(subject: str, files: Sequence[str]) -> str:
     if noun == "改善":
         return f"{target}を改善"
     return f"{target}を{verb}"
+
+
+def build_memo_text(commit: CommitInfo) -> str:
+    subject_text = translate_subject(commit.subject, commit.files)
+    body_text = format_body(commit.body_lines)
+    if not body_text:
+        return subject_text
+    return f"{subject_text}\n{body_text}"
+
+
+def format_body(body_lines: Sequence[str]) -> str:
+    start = 0
+    end = len(body_lines) - 1
+
+    while start <= end and not body_lines[start].strip():
+        start += 1
+
+    while end >= start and not body_lines[end].strip():
+        end -= 1
+
+    if start > end:
+        return ""
+
+    return "\n".join(translate_body_line(line) for line in body_lines[start : end + 1])
+
+
+def translate_body_line(line: str) -> str:
+    if not line.strip():
+        return ""
+
+    trimmed = line.strip()
+    marker_match = re.match(r"^(?P<marker>[-*]|\d+[.)])\s+(?P<content>.+)$", trimmed)
+    if not marker_match:
+        return translate_body_content(trimmed)
+
+    marker = marker_match.group("marker")
+    content = marker_match.group("content").strip()
+    return f"{marker} {translate_body_content(content)}"
+
+
+def translate_body_content(content: str) -> str:
+    trimmed = content.strip()
+    for pattern, builder in BODY_LINE_PATTERNS:
+        match = pattern.match(trimmed)
+        if match:
+            return builder(match)
+    return translate_body_remainder(trimmed)
+
+
+def translate_body_remainder(text: str) -> str:
+    translated = text.strip()
+    translated = re.sub(r"\bon load\b", "読み込み時に", translated, flags=re.IGNORECASE)
+    translated = re.sub(r"\bon save\b", "保存時に", translated, flags=re.IGNORECASE)
+    translated = re.sub(r"\bon mobile\b", "モバイルで", translated, flags=re.IGNORECASE)
+    translated = re.sub(r"\bon desktop\b", "デスクトップで", translated, flags=re.IGNORECASE)
+    translated = re.sub(r"\bin preview\b", "プレビューで", translated, flags=re.IGNORECASE)
+    translated = re.sub(r"\bfor print\b", "印刷用に", translated, flags=re.IGNORECASE)
+    translated = re.sub(r"\bwith\b", "と", translated, flags=re.IGNORECASE)
+    translated = re.sub(r"\bwithout\b", "なしで", translated, flags=re.IGNORECASE)
+    translated = re.sub(r"\bafter\b", "後で", translated, flags=re.IGNORECASE)
+    translated = re.sub(r"\bbefore\b", "前に", translated, flags=re.IGNORECASE)
+    translated = re.sub(r"\s+", " ", translated).strip()
+    return translated
 
 
 def backup_workbook(excel_path: Path) -> Path:
@@ -538,10 +675,16 @@ def main() -> int:
         raise ValueError(f"Only .xlsx workbooks are supported: {excel_path}")
 
     week_start, week_end = resolve_week_window(reference_date)
-    author_name, author_email, commits = collect_commits(
-        repo_path, week_start, week_end, args.author, args.author_email
-    )
-    reports = compose_daily_reports(week_start, week_end, commits)
+    if args.preview_json:
+        reports = load_preview_reports(Path(args.preview_json).expanduser().resolve())
+        author_name = args.author
+        author_email = args.author_email
+        commits: list[CommitInfo] = []
+    else:
+        author_name, author_email, commits = collect_commits(
+            repo_path, week_start, week_end, args.author, args.author_email
+        )
+        reports = compose_daily_reports(week_start, week_end, commits)
     backup_path, touched_sheets = write_workbook(excel_path, reports)
 
     print(f"repo={repo_path}")

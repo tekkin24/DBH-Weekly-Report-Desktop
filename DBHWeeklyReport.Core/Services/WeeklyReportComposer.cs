@@ -181,7 +181,7 @@ public sealed partial class WeeklyReportComposer : IWeeklyReportComposer
         var translated = new List<string>();
         foreach (var commit in commits)
         {
-            var text = TranslateSubject(commit.Subject, commit.Files);
+            var text = BuildMemoText(commit);
             if (translated.Contains(text, StringComparer.Ordinal))
             {
                 continue;
@@ -309,6 +309,47 @@ public sealed partial class WeeklyReportComposer : IWeeklyReportComposer
             "改善" => $"{target}を改善する",
             _ => $"{target}を{verb}",
         };
+    }
+
+    private static string BuildMemoText(CommitInfo commit)
+    {
+        var subjectText = TranslateSubject(commit.Subject, commit.Files);
+        var bodyText = FormatBody(commit.BodyLines);
+        return string.IsNullOrWhiteSpace(bodyText)
+            ? subjectText
+            : $"{subjectText}{Environment.NewLine}{bodyText}";
+    }
+
+    private static string FormatBody(IReadOnlyList<string> bodyLines)
+    {
+        if (bodyLines.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var start = 0;
+        var end = bodyLines.Count - 1;
+
+        while (start <= end && string.IsNullOrWhiteSpace(bodyLines[start]))
+        {
+            start++;
+        }
+
+        while (end >= start && string.IsNullOrWhiteSpace(bodyLines[end]))
+        {
+            end--;
+        }
+
+        if (start > end)
+        {
+            return string.Empty;
+        }
+
+        return string.Join(
+            Environment.NewLine,
+            bodyLines
+                .Skip(start)
+                .Take(end - start + 1));
     }
 
     private static Regex Rx(string pattern) => new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);

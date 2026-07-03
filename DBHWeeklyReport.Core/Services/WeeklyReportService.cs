@@ -2,7 +2,10 @@ using DBHWeeklyReport.Core.Models;
 
 namespace DBHWeeklyReport.Core.Services;
 
-public sealed class WeeklyReportService(ICommitCollector commitCollector, IWeeklyReportComposer composer) : IWeeklyReportService
+public sealed class WeeklyReportService(
+    ICommitCollector commitCollector,
+    IWeeklyReportComposer composer,
+    ICommitBodyTranslationService commitBodyTranslationService) : IWeeklyReportService
 {
     public async Task<WeeklyReportPreview> GeneratePreviewAsync(
         AppSettings settings,
@@ -21,6 +24,7 @@ public sealed class WeeklyReportService(ICommitCollector commitCollector, IWeekl
             string.IsNullOrWhiteSpace(settings.AuthorName) ? null : settings.AuthorName,
             string.IsNullOrWhiteSpace(settings.AuthorEmail) ? null : settings.AuthorEmail,
             cancellationToken);
+        var translatedCommits = await commitBodyTranslationService.TranslateAsync(commits, cancellationToken);
 
         return composer.Compose(
             settings.RepositoryPath,
@@ -28,6 +32,6 @@ public sealed class WeeklyReportService(ICommitCollector commitCollector, IWeekl
             authorName,
             authorEmail,
             targetDate,
-            commits);
+            translatedCommits);
     }
 }
